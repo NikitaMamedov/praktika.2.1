@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/Dependency-Check/suppressions/1.3.xsd">
+  <!-- Добавь suppression после первого запуска, если будут false positive -->
+</suppressions>

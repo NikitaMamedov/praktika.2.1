@@ -39,11 +39,37 @@ jobs:
           apt-get update
           apt-get install -y python3 python3-venv python3-pip
 
-      - name: Create and activate virtual environment, install Semgrep, run scan
+      - name: Create virtual environment, install Semgrep and run scan
         run: |
           python3 -m venv semgrep-venv
-          # Используем точку вместо source
           . semgrep-venv/bin/activate
           pip install --upgrade pip
           pip install semgrep
           semgrep scan --config auto --sarif --output semgrep-sast-report.sarif
+
+      - name: Upload SARIF report
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-sast-report.sarif
+
+  sca:
+    runs-on: ubuntu-latest
+    needs: build
+    container:
+      image: maven:3.9.11-eclipse-temurin-21
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      - name: Run OWASP Dependency-Check
+        run: ./mvnw dependency-check:check
+
+      - name: Upload SCA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+
