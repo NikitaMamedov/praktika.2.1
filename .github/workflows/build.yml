@@ -1,4 +1,4 @@
-name: Build, SAST & SCA
+name: Build, Package and SCA
 
 on:
   pull_request:
@@ -8,9 +8,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: maven:3.9.11-eclipse-temurin-21
+      image: maven:3.9.12-eclipse-temurin-21
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Make mvnw executable
         run: chmod +x mvnw
@@ -27,44 +28,48 @@ jobs:
   sast:
     runs-on: ubuntu-latest
     needs: build
+    container:
+      image: maven:3.9.12-eclipse-temurin-21
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Install Python 3
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 python3-venv python3-pip
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-      - name: Setup Semgrep and run scan
-        run: |
-          python3 -m venv semgrep-venv
-          . semgrep-venv/bin/activate
-          pip install --upgrade pip
-          pip install semgrep
-          semgrep scan --config auto --sarif --output semgrep-sast-report.sarif
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep SAST
+        run: semgrep scan --config auto --sarif --output semgrep-sast-report.sarif
 
       - name: Upload SARIF report
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep-sast-report.sarif
 
-  sca:
+  dependency-check:
     runs-on: ubuntu-latest
     needs: build
     container:
-      image: maven:3.9.11-eclipse-temurin-21
+      image: maven:3.9.12-eclipse-temurin-21
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Make mvnw executable
         run: chmod +x mvnw
 
       - name: Run OWASP Dependency-Check
-        # Указываем полное имя плагина с версией
-        run: ./mvnw org.owasp:dependency-check-maven:8.5.0:check
+        run: ./mvnw verify -DskipTests
 
-      - name: Upload SCA report
+      - name: Upload Dependency-Check report
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: dependency-check-report
-          path: target/dependency-check-report.html
+          path: |
+            target/dependency-check-report.html
+            target/dependency-check-report.xml
